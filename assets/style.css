@@ -1,0 +1,28 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+header, footer {
+    background: #f0f0f0;
+    padding: 1em;
+    text-align: center;
+}
+.search-bar, .filters {
+    margin: 1em;
+    text-align: center;
+}
+.books {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1em;
+}
+.book {
+    border: 1px solid #ccc;
+    padding: 1em;
+    width: 200px;
+}
+.book img {
+    max-width: 100%;
+}
