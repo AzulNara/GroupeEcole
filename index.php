@@ -1,5 +1,6 @@
 <?php
 require_once 'config.php';
+require_once 'auth.php'; // Inclure le système d'authentification
 
 // Traitement de la recherche
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
@@ -57,6 +58,9 @@ try {
     $totalLivres = 0;
     $totalAuteurs = 0;
 }
+
+// Obtenir l'utilisateur connecté
+$currentUser = getCurrentUser();
 ?>
 
 <!DOCTYPE html>
@@ -69,7 +73,52 @@ try {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; color: #333; }
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        header { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; text-align: center; margin-bottom: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
+        header { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; text-align: center; margin-bottom: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); position: relative; }
+        .auth-buttons { 
+            position: absolute; 
+            top: 20px; 
+            right: 20px; 
+            display: flex; 
+            gap: 10px; 
+            align-items: center; 
+            z-index: 10;
+        }
+        .auth-btn { 
+            padding: 10px 16px; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            font-size: 0.9rem; 
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: inline-block;
+            border: none;
+            text-align: center;
+        }
+        .login-btn { 
+            background: linear-gradient(45deg, #667eea, #764ba2); 
+            color: white !important; 
+        }
+        .register-btn { 
+            background: rgba(255, 255, 255, 0.9); 
+            color: #333 !important; 
+            border: 2px solid #667eea; 
+        }
+        .logout-btn { 
+            background: linear-gradient(45deg, #dc3545, #c82333); 
+            color: white !important; 
+        }
+        .auth-btn:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); 
+            text-decoration: none;
+        }
+        .user-welcome { 
+            color: #667eea; 
+            font-weight: 600; 
+            margin-right: 10px; 
+            font-size: 0.9rem; 
+        }
         .logo { font-size: 4rem; margin-bottom: 10px; animation: bounce 2s infinite; }
         @keyframes bounce {
             0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
@@ -106,6 +155,12 @@ try {
         .stat-label { color: rgba(255, 255, 255, 0.9); font-size: 0.9rem; }
         footer { text-align: center; padding: 30px; color: rgba(255, 255, 255, 0.8); margin-top: 40px; }
         @media (max-width: 768px) {
+            .auth-buttons { 
+                position: static; 
+                justify-content: center; 
+                margin-bottom: 20px; 
+                flex-wrap: wrap;
+            }
             .search-form { flex-direction: column; }
             .search-input { min-width: 100%; }
             .books-grid { grid-template-columns: 1fr; }
@@ -116,6 +171,18 @@ try {
 <body>
     <div class="container">
         <header>
+            <div class="auth-buttons">
+                <?php if (isLoggedIn()): ?>
+                    <span class="user-welcome">
+                        👋 Bonjour, <?php echo htmlspecialchars($currentUser['prenom'] ?: $currentUser['username']); ?>
+                    </span>
+                    <a href="logout.php" class="auth-btn logout-btn">🚪 Déconnexion</a>
+                <?php else: ?>
+                    <a href="login.php" class="auth-btn login-btn">🔐 Se connecter</a>
+                    <a href="register.php" class="auth-btn register-btn">📝 S'inscrire</a>
+                <?php endif; ?>
+            </div>
+            
             <div class="logo">📚</div>
             <h1>E-Library</h1>
             <p class="subtitle">Découvrez votre prochaine lecture</p>
