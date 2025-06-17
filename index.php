@@ -112,6 +112,37 @@ try {
             .stats { flex-direction: column; gap: 15px; }
         }
     </style>
+
+    <style>
+    .header-buttons {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        display: flex;
+        gap: 10px;
+    }
+    .cart-button {
+        padding: 8px 15px;
+        background: #4CAF50;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .cart-count {
+        background: white;
+        color: #4CAF50;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+    }
+</style>
 </head>
 <body>
     <div class="container">
@@ -223,7 +254,14 @@ try {
             <?php endif; ?>
         </div>
     </div>
-
+                                    <div class="header-buttons">
+    <a href="panier.php" class="cart-button">
+        🛒 Panier
+        <?php if (!empty($_SESSION['panier'])): ?>
+            <span class="cart-count"><?= count($_SESSION['panier']) ?></span>
+        <?php endif; ?>
+    </a>
+</div>
     <footer>
         <p>&copy; 2025 E-Library. Tous droits réservés. 📚✨</p>
     </footer>
