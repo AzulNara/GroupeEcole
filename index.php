@@ -26,8 +26,8 @@ try {
     }
 
     if (!empty($genre)) {
-        $conditions[] = "g.intitule = :genre";
-        $params[':genre'] = $genre;
+        $conditions[] = "g.intitule = ?";
+        $params[] = $genre;
     }
 
     // Finalisation de la requête
@@ -287,41 +287,31 @@ $currentUser = getCurrentUser();
                     <?php foreach ($livres as $livre): ?>
                         <a href="livre.php?id=<?php echo $livre['id_livre']; ?>" class="book-link">
                             <div class="book-card">
-                                <?php 
-                                $imageUrl = $livre['image_url'] ?? '/placeholder.svg?height=250&width=200';
-                                ?>
-                                <img src="<?php echo htmlspecialchars($imageUrl); ?>" 
-                                     alt="Couverture de <?php echo htmlspecialchars($livre['titre'] ?? 'Livre'); ?>" 
-                                     class="book-image"
-                                     onerror="this.src='/placeholder.svg?height=250&width=200'">
+                                <h3 class="book-title">
+                                    <?php echo htmlspecialchars($livre['titre'] ?? 'Titre non disponible'); ?>
+                                </h3>
                                 
-                                <div class="book-content">
-                                    <h3 class="book-title">
-                                        <?php echo htmlspecialchars($livre['titre'] ?? 'Titre non disponible'); ?>
-                                    </h3>
-                                    
-                                    <p class="book-author">
-                                        par <?php echo htmlspecialchars($livre['noms_auteurs'] ?? 'Auteur inconnu'); ?>
-                                    </p>
-                                    
-                                    <?php if (isset($livre['genre_nom'])): ?>
-                                        <div class="book-genre">
-                                            <?php echo htmlspecialchars($livre['genre_nom']); ?>
-                                        </div>
-                                    <?php endif; ?>
-                                    
-                                    <?php if (isset($livre['prix'])): ?>
-                                        <div class="book-price">💰 Prix: <?php echo number_format($livre['prix'], 2); ?> €</div>
-                                    <?php endif; ?>
-                                    
-                                    <?php if (isset($livre['annee_publication'])): ?>
-                                        <div class="book-info">📅 <?php echo $livre['annee_publication']; ?></div>
-                                    <?php endif; ?>
-                                    
-                                    <?php if (isset($livre['isbn'])): ?>
-                                        <div class="book-info">📖 ISBN: <?php echo htmlspecialchars($livre['isbn']); ?></div>
-                                    <?php endif; ?>
-                                </div>
+                                <p class="book-author">
+                                    par <?php echo htmlspecialchars($livre['noms_auteurs'] ?? 'Auteur inconnu'); ?>
+                                </p>
+                                
+                                <?php if (isset($livre['genre_nom'])): ?>
+                                    <div class="book-genre">
+                                        <?php echo htmlspecialchars($livre['genre_nom']); ?>
+                                    </div>
+                                <?php endif; ?>
+                                
+                                <?php if (isset($livre['prix'])): ?>
+                                    <div class="book-price">💰 Prix: <?php echo number_format($livre['prix'], 2); ?> €</div>
+                                <?php endif; ?>
+                                
+                                <?php if (isset($livre['annee_publication'])): ?>
+                                    <div class="book-info">📅 <?php echo $livre['annee_publication']; ?></div>
+                                <?php endif; ?>
+                                
+                                <?php if (isset($livre['isbn'])): ?>
+                                    <div class="book-info">📖 ISBN: <?php echo htmlspecialchars($livre['isbn']); ?></div>
+                                <?php endif; ?>
                             </div>
                         </a>
                     <?php endforeach; ?>
