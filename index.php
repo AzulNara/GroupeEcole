@@ -25,10 +25,12 @@ try {
     $conditions = [];
     $params = [];
 
-    // Ajout des conditions de recherche
+    // Ajout des conditions de recherche (corrigé)
     if (!empty($search)) {
-        $conditions[] = "(l.titre LIKE :search OR a.nom LIKE :search OR a.prenom LIKE :search)";
-        $params[':search'] = '%' . $search . '%';
+        $conditions[] = "(l.titre LIKE :search_titre OR a.nom LIKE :search_nom OR a.prenom LIKE :search_prenom)";
+        $params[':search_titre'] = '%' . $search . '%';
+        $params[':search_nom'] = '%' . $search . '%';
+        $params[':search_prenom'] = '%' . $search . '%';
     }
 
     if (!empty($genre)) {
