@@ -1,62 +1,76 @@
 <?php
 session_start();
 require_once 'config.php';
-require_once 'vendor/autoload.php';
-
-\Stripe\Stripe::setApiKey(STRIPE_SECRET_KEY);
-
-// Vérifier la session Stripe
-$payment_intent_id = $_GET['payment_intent'] ?? null;
-
-try {
-    if ($payment_intent_id) {
-        $payment_intent = \Stripe\PaymentIntent::retrieve($payment_intent_id);
-        
-        if ($payment_intent->status === 'succeeded') {
-            // Enregistrer la commande en base de données
-            // ...
-            
-            // Vider le panier
-            unset($_SESSION['panier']);
-            
-            $message = "Paiement réussi! Merci pour votre achat.";
-        } else {
-            $message = "Votre paiement n'a pas abouti.";
-        }
-    } else {
-        $message = "Aucune information de paiement.";
-    }
-} catch (Exception $e) {
-    $message = "Erreur lors de la vérification du paiement: " . $e->getMessage();
-}
 ?>
 
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Confirmation - E-Library</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; color: #333; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .confirmation-container { background: white; border-radius: 20px; padding: 40px; margin: 30px auto; max-width: 600px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; }
-        .home-button { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 10px; }
-        .success { color: #4CAF50; font-size: 1.2rem; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background: #f5f7fa;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+        .confirmation-box {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 90%;
+        }
+        h1 {
+            color: #27ae60;
+            margin-bottom: 20px;
+        }
+        p {
+            margin-bottom: 30px;
+            font-size: 18px;
+        }
+        .icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+            color: #27ae60;
+        }
+        .home-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s;
+        }
+        .home-btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="confirmation-container">
-            <h1>Confirmation de commande</h1>
-            
-            <p class="success"><?= htmlspecialchars($message) ?></p>
-            
-            <?php if ($payment_intent_id): ?>
-            <p>Référence de paiement: <?= htmlspecialchars($payment_intent_id) ?></p>
-            <?php endif; ?>
-            
-            <a href="index.php" class="home-button">Retour à l'accueil</a>
-        </div>
+    <div class="confirmation-box">
+        <div class="icon">✓</div>
+        <h1>Paiement confirmé !</h1>
+        <p>Merci pour votre achat. Votre commande a été enregistrée avec succès.</p>
+        <p>Un email de confirmation vous a été envoyé.</p>
+        <a href="index.php" class="home-btn">Retour à l'accueil</a>
     </div>
 </body>
 </html>
