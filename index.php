@@ -1,12 +1,13 @@
 <?php
 require_once 'config.php';
 
-// Traitement de la recherche
+session_start(); // Ajouté pour la gestion du panier
+
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $genre = isset($_GET['genre']) ? trim($_GET['genre']) : '';
+$cart_count = isset($_SESSION['cart']) ? count($_SESSION['cart']) : 0; // Compteur panier
 
 try {
-    // Requête principale pour les livres
     $sql = "SELECT l.*, 
                    GROUP_CONCAT(DISTINCT CONCAT(a.prenom, ' ', a.nom) SEPARATOR ', ') AS noms_auteurs,
                    g.intitule AS genre_nom 
@@ -18,10 +19,16 @@ try {
     $conditions = [];
     $params = [];
 
-    // Ajout des conditions de recherche
     if (!empty($search)) {
-        $conditions[] = "(l.titre LIKE :search OR a.nom LIKE :search OR a.prenom LIKE :search)";
-        $params[':search'] = '%' . $search . '%';
+        $conditions[] = "(l.titre LIKE :search_titre 
+                         OR a.nom LIKE :search_nom 
+                         OR a.prenom LIKE :search_prenom
+                         OR l.prix = :search_prix)";
+        
+        $params[':search_titre'] = '%' . $search . '%';
+        $params[':search_nom'] = '%' . $search . '%';
+        $params[':search_prenom'] = '%' . $search . '%';
+        $params[':search_prix'] = is_numeric($search) ? (float)$search : -1;
     }
 
     if (!empty($genre)) {
@@ -29,21 +36,24 @@ try {
         $params[':genre'] = $genre;
     }
 
-    // Finalisation de la requête
     if (!empty($conditions)) {
         $sql .= " WHERE " . implode(' AND ', $conditions);
     }
     $sql .= " GROUP BY l.id_livre ORDER BY l.titre ASC";
 
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
+    
+    foreach ($params as $key => $value) {
+        $type = is_float($value) ? PDO::PARAM_STR : PDO::PARAM_STR;
+        $stmt->bindValue($key, $value, $type);
+    }
+    
+    $stmt->execute();
     $livres = $stmt->fetchAll();
     
-    // Récupération des genres pour le menu déroulant
     $genresStmt = $pdo->query("SELECT intitule FROM genres ORDER BY intitule");
     $genres = $genresStmt->fetchAll(PDO::FETCH_COLUMN);
     
-    // Statistiques
     $statsStmt = $pdo->query("SELECT COUNT(*) as total_livres FROM livres");
     $totalLivres = $statsStmt->fetch()['total_livres'];
     
@@ -69,7 +79,7 @@ try {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; color: #333; }
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        header { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; text-align: center; margin-bottom: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
+        header { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; text-align: center; margin-bottom: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); position: relative; }
         .logo { font-size: 4rem; margin-bottom: 10px; animation: bounce 2s infinite; }
         @keyframes bounce {
             0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
@@ -78,6 +88,9 @@ try {
         }
         h1 { font-size: 2.5rem; background: linear-gradient(45deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 10px; }
         .subtitle { color: #666; font-size: 1.1rem; }
+        .header-actions { position: absolute; top: 30px; right: 30px; }
+        .cart-btn { padding: 10px 20px; background: linear-gradient(45deg, #4CAF50, #2E7D32); color: white; border: none; border-radius: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .cart-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(46, 125, 50, 0.4); }
         .search-section { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; margin-bottom: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
         .search-form { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; align-items: center; }
         .search-input, .genre-select { padding: 15px 20px; border: 2px solid #e0e0e0; border-radius: 15px; font-size: 1rem; transition: all 0.3s ease; background: white; }
@@ -109,44 +122,19 @@ try {
             .search-form { flex-direction: column; }
             .search-input { min-width: 100%; }
             .books-grid { grid-template-columns: 1fr; }
-            .stats { flex-direction: column; gap: 15px; }
+            .header-actions { position: static; margin-bottom: 20px; }
         }
     </style>
-
-    <style>
-    .header-buttons {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        display: flex;
-        gap: 10px;
-    }
-    .cart-button {
-        padding: 8px 15px;
-        background: #4CAF50;
-        color: white;
-        text-decoration: none;
-        border-radius: 5px;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-    .cart-count {
-        background: white;
-        color: #4CAF50;
-        border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 12px;
-    }
-</style>
 </head>
 <body>
     <div class="container">
         <header>
+            <div class="header-actions">
+                <button class="cart-btn">
+                    🛒 Panier <?= $cart_count > 0 ? "($cart_count)" : '' ?>
+                </button>
+            </div>
+            
             <div class="logo">📚</div>
             <h1>E-Library</h1>
             <p class="subtitle">Découvrez votre prochaine lecture</p>
@@ -154,15 +142,15 @@ try {
 
         <div class="stats">
             <div class="stat-item">
-                <span class="stat-number"><?php echo $totalLivres ?? 0; ?></span>
+                <span class="stat-number"><?= $totalLivres ?? 0 ?></span>
                 <span class="stat-label">Livres total</span>
             </div>
             <div class="stat-item">
-                <span class="stat-number"><?php echo $totalAuteurs ?? 0; ?></span>
+                <span class="stat-number"><?= $totalAuteurs ?? 0 ?></span>
                 <span class="stat-label">Auteurs</span>
             </div>
             <div class="stat-item">
-                <span class="stat-number"><?php echo count($livres); ?></span>
+                <span class="stat-number"><?= count($livres) ?></span>
                 <span class="stat-label">Résultats</span>
             </div>
         </div>
@@ -172,16 +160,16 @@ try {
                 <input type="text" 
                        class="search-input" 
                        name="search" 
-                       value="<?php echo htmlspecialchars($search); ?>"
-                       placeholder="🔍 Rechercher un livre, un auteur...">
+                       value="<?= htmlspecialchars($search) ?>"
+                       placeholder="🔍 Rechercher un livre, un auteur, un prix...">
                 
                 <?php if (!empty($genres)): ?>
                 <select class="genre-select" name="genre">
                     <option value="">Tous les genres</option>
                     <?php foreach ($genres as $g): ?>
-                        <option value="<?php echo htmlspecialchars($g); ?>" 
-                                <?php echo ($genre === $g) ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($g); ?>
+                        <option value="<?= htmlspecialchars($g) ?>" 
+                                <?= ($genre === $g) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($g) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -208,7 +196,7 @@ try {
             </h2>
             
             <?php if (isset($error)): ?>
-                <div class="error"><?php echo $error; ?></div>
+                <div class="error"><?= $error ?></div>
             <?php endif; ?>
 
             <?php if (empty($livres)): ?>
@@ -220,32 +208,32 @@ try {
             <?php else: ?>
                 <div class="books-grid">
                     <?php foreach ($livres as $livre): ?>
-                        <a href="livre.php?id=<?php echo $livre['id_livre']; ?>" class="book-link">
+                        <a href="livre.php?id=<?= $livre['id_livre'] ?>" class="book-link">
                             <div class="book-card">
                                 <h3 class="book-title">
-                                    <?php echo htmlspecialchars($livre['titre'] ?? 'Titre non disponible'); ?>
+                                    <?= htmlspecialchars($livre['titre'] ?? 'Titre non disponible') ?>
                                 </h3>
                                 
                                 <p class="book-author">
-                                    par <?php echo htmlspecialchars($livre['noms_auteurs'] ?? 'Auteur inconnu'); ?>
+                                    par <?= htmlspecialchars($livre['noms_auteurs'] ?? 'Auteur inconnu') ?>
                                 </p>
                                 
                                 <?php if (isset($livre['genre_nom'])): ?>
                                     <div class="book-genre">
-                                        <?php echo htmlspecialchars($livre['genre_nom']); ?>
+                                        <?= htmlspecialchars($livre['genre_nom']) ?>
                                     </div>
                                 <?php endif; ?>
                                 
                                 <?php if (isset($livre['prix'])): ?>
-                                    <div class="book-price">💰 Prix: <?php echo number_format($livre['prix'], 2); ?> €</div>
+                                    <div class="book-price">💰 Prix: <?= number_format($livre['prix'], 2) ?> €</div>
                                 <?php endif; ?>
                                 
                                 <?php if (isset($livre['annee_publication'])): ?>
-                                    <div class="book-info">📅 <?php echo $livre['annee_publication']; ?></div>
+                                    <div class="book-info">📅 <?= $livre['annee_publication'] ?></div>
                                 <?php endif; ?>
                                 
                                 <?php if (isset($livre['isbn'])): ?>
-                                    <div class="book-info">📖 ISBN: <?php echo htmlspecialchars($livre['isbn']); ?></div>
+                                    <div class="book-info">📖 ISBN: <?= htmlspecialchars($livre['isbn']) ?></div>
                                 <?php endif; ?>
                             </div>
                         </a>
@@ -254,14 +242,7 @@ try {
             <?php endif; ?>
         </div>
     </div>
-                                    <div class="header-buttons">
-    <a href="panier.php" class="cart-button">
-        🛒 Panier
-        <?php if (!empty($_SESSION['panier'])): ?>
-            <span class="cart-count"><?= count($_SESSION['panier']) ?></span>
-        <?php endif; ?>
-    </a>
-</div>
+
     <footer>
         <p>&copy; 2025 E-Library. Tous droits réservés. 📚✨</p>
     </footer>
