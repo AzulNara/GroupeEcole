@@ -110,6 +110,13 @@ $currentUser = getCurrentUser();
             background: linear-gradient(45deg, #dc3545, #c82333); 
             color: white !important; 
         }
+        .cart-btn { 
+            background: linear-gradient(45deg, #ff9966, #ff5e62);
+            color: white !important;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
         .auth-btn:hover { 
             transform: translateY(-2px); 
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); 
@@ -120,6 +127,17 @@ $currentUser = getCurrentUser();
             font-weight: 600; 
             margin-right: 10px; 
             font-size: 0.9rem; 
+        }
+        .cart-count {
+            background: white;
+            color: #ff5e62;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
         }
         .logo { font-size: 4rem; margin-bottom: 10px; animation: bounce 2s infinite; }
         @keyframes bounce {
@@ -169,37 +187,6 @@ $currentUser = getCurrentUser();
             .stats { flex-direction: column; gap: 15px; }
         }
     </style>
-
-    <style>
-    .header-buttons {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        display: flex;
-        gap: 10px;
-    }
-    .cart-button {
-        padding: 8px 15px;
-        background: #4CAF50;
-        color: white;
-        text-decoration: none;
-        border-radius: 5px;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-    .cart-count {
-        background: white;
-        color: #4CAF50;
-        border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 12px;
-    }
-</style>
 </head>
 <body>
     <div class="container">
@@ -209,8 +196,20 @@ $currentUser = getCurrentUser();
                     <span class="user-welcome">
                         👋 Bonjour, <?php echo htmlspecialchars($currentUser['prenom'] ?: $currentUser['username']); ?>
                     </span>
+                    <a href="panier.php" class="auth-btn cart-btn">
+                        🛒 Panier
+                        <?php if (!empty($_SESSION['panier'])): ?>
+                            <span class="cart-count"><?= count($_SESSION['panier']) ?></span>
+                        <?php endif; ?>
+                    </a>
                     <a href="logout.php" class="auth-btn logout-btn">🚪 Déconnexion</a>
                 <?php else: ?>
+                    <a href="panier.php" class="auth-btn cart-btn">
+                        🛒 Panier
+                        <?php if (!empty($_SESSION['panier'])): ?>
+                            <span class="cart-count"><?= count($_SESSION['panier']) ?></span>
+                        <?php endif; ?>
+                    </a>
                     <a href="login.php" class="auth-btn login-btn">🔐 Se connecter</a>
                     <a href="register.php" class="auth-btn register-btn">📝 S'inscrire</a>
                 <?php endif; ?>
@@ -323,14 +322,7 @@ $currentUser = getCurrentUser();
             <?php endif; ?>
         </div>
     </div>
-    <div class="header-buttons">
-        <a href="panier.php" class="cart-button">
-            🛒 Panier
-            <?php if (!empty($_SESSION['panier'])): ?>
-                <span class="cart-count"><?= count($_SESSION['panier']) ?></span>
-            <?php endif; ?>
-        </a>
-    </div>
+    
     <footer>
         <p>&copy; 2025 E-Library. Tous droits réservés. 📚✨</p>
     </footer>
