@@ -2,12 +2,17 @@
 require_once 'config.php';
 require_once 'auth.php'; // Inclure le système d'authentification
 
+// Démarrer la session pour le panier
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
 // Traitement de la recherche
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $genre = isset($_GET['genre']) ? trim($_GET['genre']) : '';
 
 try {
-    // Requête principale pour les livres (ajout de image_url)
+    // Requête principale pour les livres (avec image_url)
     $sql = "SELECT l.*, 
                    GROUP_CONCAT(DISTINCT CONCAT(a.prenom, ' ', a.nom) SEPARATOR ', ') AS noms_auteurs,
                    g.intitule AS genre_nom 
@@ -26,8 +31,8 @@ try {
     }
 
     if (!empty($genre)) {
-        $conditions[] = "g.intitule = ?";
-        $params[] = $genre;
+        $conditions[] = "g.intitule = :genre";
+        $params[':genre'] = $genre;
     }
 
     // Finalisation de la requête
@@ -74,7 +79,8 @@ $currentUser = getCurrentUser();
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; color: #333; }
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
         header { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; text-align: center; margin-bottom: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); position: relative; }
-        .auth-buttons { 
+        
+        .header-buttons { 
             position: absolute; 
             top: 20px; 
             right: 20px; 
@@ -108,34 +114,40 @@ $currentUser = getCurrentUser();
             background: linear-gradient(45deg, #dc3545, #c82333); 
             color: white !important; 
         }
-        .cart-btn { 
-            background: linear-gradient(45deg, #ff9966, #ff5e62);
+        .cart-button {
+            padding: 10px 16px;
+            background: #4CAF50;
             color: white !important;
-            display: inline-flex;
+            text-decoration: none;
+            border-radius: 8px;
+            display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
         }
-        .auth-btn:hover { 
+        .cart-button:hover, .auth-btn:hover { 
             transform: translateY(-2px); 
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); 
             text-decoration: none;
+        }
+        .cart-count {
+            background: white;
+            color: #4CAF50;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
         }
         .user-welcome { 
             color: #667eea; 
             font-weight: 600; 
             margin-right: 10px; 
             font-size: 0.9rem; 
-        }
-        .cart-count {
-            background: white;
-            color: #ff5e62;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
         }
         .logo { font-size: 4rem; margin-bottom: 10px; animation: bounce 2s infinite; }
         @keyframes bounce {
@@ -202,7 +214,7 @@ $currentUser = getCurrentUser();
         .stat-label { color: rgba(255, 255, 255, 0.9); font-size: 0.9rem; }
         footer { text-align: center; padding: 30px; color: rgba(255, 255, 255, 0.8); margin-top: 40px; }
         @media (max-width: 768px) {
-            .auth-buttons { 
+            .header-buttons { 
                 position: static; 
                 justify-content: center; 
                 margin-bottom: 20px; 
@@ -218,25 +230,22 @@ $currentUser = getCurrentUser();
 <body>
     <div class="container">
         <header>
-            <div class="auth-buttons">
+            <div class="header-buttons">
+                <!-- Bouton panier -->
+                <a href="panier.php" class="cart-button">
+                    🛒 Panier
+                    <?php if (!empty($_SESSION['panier'])): ?>
+                        <span class="cart-count"><?= count($_SESSION['panier']) ?></span>
+                    <?php endif; ?>
+                </a>
+                
+                <!-- Boutons d'authentification -->
                 <?php if (isLoggedIn()): ?>
                     <span class="user-welcome">
                         👋 Bonjour, <?php echo htmlspecialchars($currentUser['prenom'] ?: $currentUser['username']); ?>
                     </span>
-                    <a href="panier.php" class="auth-btn cart-btn">
-                        🛒 Panier
-                        <?php if (!empty($_SESSION['panier'])): ?>
-                            <span class="cart-count"><?= count($_SESSION['panier']) ?></span>
-                        <?php endif; ?>
-                    </a>
                     <a href="logout.php" class="auth-btn logout-btn">🚪 Déconnexion</a>
                 <?php else: ?>
-                    <a href="panier.php" class="auth-btn cart-btn">
-                        🛒 Panier
-                        <?php if (!empty($_SESSION['panier'])): ?>
-                            <span class="cart-count"><?= count($_SESSION['panier']) ?></span>
-                        <?php endif; ?>
-                    </a>
                     <a href="login.php" class="auth-btn login-btn">🔐 Se connecter</a>
                     <a href="register.php" class="auth-btn register-btn">📝 S'inscrire</a>
                 <?php endif; ?>
@@ -317,31 +326,41 @@ $currentUser = getCurrentUser();
                     <?php foreach ($livres as $livre): ?>
                         <a href="livre.php?id=<?php echo $livre['id_livre']; ?>" class="book-link">
                             <div class="book-card">
-                                <h3 class="book-title">
-                                    <?php echo htmlspecialchars($livre['titre'] ?? 'Titre non disponible'); ?>
-                                </h3>
+                                <?php 
+                                $imageUrl = $livre['image_url'] ?? '/placeholder.svg?height=250&width=200';
+                                ?>
+                                <img src="<?php echo htmlspecialchars($imageUrl); ?>" 
+                                     alt="Couverture de <?php echo htmlspecialchars($livre['titre'] ?? 'Livre'); ?>" 
+                                     class="book-image"
+                                     onerror="this.src='/placeholder.svg?height=250&width=200'">
                                 
-                                <p class="book-author">
-                                    par <?php echo htmlspecialchars($livre['noms_auteurs'] ?? 'Auteur inconnu'); ?>
-                                </p>
-                                
-                                <?php if (isset($livre['genre_nom'])): ?>
-                                    <div class="book-genre">
-                                        <?php echo htmlspecialchars($livre['genre_nom']); ?>
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <?php if (isset($livre['prix'])): ?>
-                                    <div class="book-price">💰 Prix: <?php echo number_format($livre['prix'], 2); ?> €</div>
-                                <?php endif; ?>
-                                
-                                <?php if (isset($livre['annee_publication'])): ?>
-                                    <div class="book-info">📅 <?php echo $livre['annee_publication']; ?></div>
-                                <?php endif; ?>
-                                
-                                <?php if (isset($livre['isbn'])): ?>
-                                    <div class="book-info">📖 ISBN: <?php echo htmlspecialchars($livre['isbn']); ?></div>
-                                <?php endif; ?>
+                                <div class="book-content">
+                                    <h3 class="book-title">
+                                        <?php echo htmlspecialchars($livre['titre'] ?? 'Titre non disponible'); ?>
+                                    </h3>
+                                    
+                                    <p class="book-author">
+                                        par <?php echo htmlspecialchars($livre['noms_auteurs'] ?? 'Auteur inconnu'); ?>
+                                    </p>
+                                    
+                                    <?php if (isset($livre['genre_nom'])): ?>
+                                        <div class="book-genre">
+                                            <?php echo htmlspecialchars($livre['genre_nom']); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if (isset($livre['prix'])): ?>
+                                        <div class="book-price">💰 Prix: <?php echo number_format($livre['prix'], 2); ?> €</div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if (isset($livre['annee_publication'])): ?>
+                                        <div class="book-info">📅 <?php echo $livre['annee_publication']; ?></div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if (isset($livre['isbn'])): ?>
+                                        <div class="book-info">📖 ISBN: <?php echo htmlspecialchars($livre['isbn']); ?></div>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </a>
                     <?php endforeach; ?>
@@ -349,7 +368,7 @@ $currentUser = getCurrentUser();
             <?php endif; ?>
         </div>
     </div>
-    
+
     <footer>
         <p>&copy; 2025 E-Library. Tous droits réservés. 📚✨</p>
     </footer>

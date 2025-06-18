@@ -1,4 +1,5 @@
 <?php
+session_start(); // Ajouter pour gérer le panier
 require_once 'config.php';
 
 // Vérifier si l'ID est présent
@@ -8,6 +9,25 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 }
 
 $id_livre = (int)$_GET['id'];
+
+// Traitement de l'ajout au panier
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_to_cart') {
+    if (!isset($_SESSION['panier'])) {
+        $_SESSION['panier'] = [];
+    }
+    
+    if (isset($_SESSION['panier'][$id_livre])) {
+        $_SESSION['panier'][$id_livre]['quantite']++;
+    } else {
+        $_SESSION['panier'][$id_livre] = [
+            'titre' => $_POST['titre'],
+            'prix' => $_POST['prix'],
+            'quantite' => 1
+        ];
+    }
+    
+    $_SESSION['message'] = "Le livre a été ajouté au panier !";
+}
 
 try {
     // Requête pour obtenir les détails du livre (avec image)
@@ -44,7 +64,46 @@ try {
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; color: #333; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; position: relative; }
+        
+        /* Bouton panier dans le header */
+        .header-buttons {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
+        .cart-button {
+            padding: 10px 16px;
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .cart-button:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+        .cart-count {
+            background: white;
+            color: #4CAF50;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
         .book-detail { 
             background: white; 
             border-radius: 20px; 
@@ -130,7 +189,62 @@ try {
             margin: 15px 0;
         }
         
+        /* Styles pour le bouton ajouter au panier */
+        .add-to-cart-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .add-to-cart-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .add-to-cart-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(40, 167, 69, 0.4);
+        }
+        
+        .add-to-cart-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
         @media (max-width: 768px) {
+            .header-buttons {
+                position: static;
+                justify-content: center;
+                margin-bottom: 20px;
+            }
             .book-detail {
                 grid-template-columns: 1fr;
                 gap: 20px;
@@ -148,6 +262,16 @@ try {
 </head>
 <body>
     <div class="container">
+        <!-- Bouton panier dans le header -->
+        <div class="header-buttons">
+            <a href="panier.php" class="cart-button">
+                🛒 Panier
+                <?php if (!empty($_SESSION['panier'])): ?>
+                    <span class="cart-count"><?= count($_SESSION['panier']) ?></span>
+                <?php endif; ?>
+            </a>
+        </div>
+        
         <a href="index.php" class="back-button">← Retour à la liste</a>
         
         <div class="book-detail">
@@ -162,6 +286,13 @@ try {
             </div>
             
             <div class="book-info-section">
+                <?php if (isset($_SESSION['message'])): ?>
+                    <div class="success-message">
+                        ✅ <?php echo htmlspecialchars($_SESSION['message']); ?>
+                    </div>
+                    <?php unset($_SESSION['message']); ?>
+                <?php endif; ?>
+                
                 <h1 class="book-title"><?php echo htmlspecialchars($livre['titre']); ?></h1>
                 
                 <div class="book-meta">
@@ -185,6 +316,21 @@ try {
                         <p><strong>ISBN:</strong> <?php echo htmlspecialchars($livre['isbn']); ?></p>
                     <?php endif; ?>
                 </div>
+                
+                <!-- Section Ajouter au panier -->
+                <?php if (isset($livre['prix']) && $livre['prix'] > 0): ?>
+                <div class="add-to-cart-section">
+                    <form method="POST">
+                        <input type="hidden" name="action" value="add_to_cart">
+                        <input type="hidden" name="titre" value="<?php echo htmlspecialchars($livre['titre']); ?>">
+                        <input type="hidden" name="prix" value="<?php echo $livre['prix']; ?>">
+                        
+                        <button type="submit" class="add-to-cart-btn">
+                            🛒 Ajouter au panier - <?php echo number_format($livre['prix'], 2); ?> €
+                        </button>
+                    </form>
+                </div>
+                <?php endif; ?>
                 
                 <?php if (isset($livre['description']) && !empty($livre['description'])): ?>
                     <div class="book-description">
