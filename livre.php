@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once 'config.php';
 
 // Vérifier si l'ID est présent
@@ -11,7 +10,7 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 $id_livre = (int)$_GET['id'];
 
 try {
-    // Requête pour obtenir les détails du livre
+    // Requête pour obtenir les détails du livre (avec image)
     $sql = "SELECT l.*, 
                    GROUP_CONCAT(DISTINCT CONCAT(a.prenom, ' ', a.nom) SEPARATOR ', ') AS noms_auteurs,
                    g.intitule AS genre_nom 
@@ -42,68 +41,108 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($livre['titre']); ?> - E-Library</title>
-    <!-- Stripe JS -->
-    <script src="https://js.stripe.com/v3/"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; color: #333; }
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .book-detail { background: white; border-radius: 20px; padding: 40px; margin: 30px auto; max-width: 800px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .back-button { display: inline-block; margin-bottom: 20px; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 10px; transition: all 0.3s ease; }
+        .book-detail { 
+            background: white; 
+            border-radius: 20px; 
+            padding: 40px; 
+            margin: 30px auto; 
+            max-width: 900px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 40px;
+            align-items: start;
+        }
+        .back-button { 
+            display: inline-block; 
+            margin-bottom: 20px; 
+            padding: 10px 20px; 
+            background: #667eea; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 10px; 
+            transition: all 0.3s ease; 
+        }
         .back-button:hover { background: #764ba2; }
-        .book-title { font-size: 2rem; margin-bottom: 15px; }
-        .book-meta { margin-bottom: 20px; }
-        .book-description { margin-top: 30px; line-height: 1.6; }
         
-        /* Styles pour les boutons d'action */
-        .action-buttons {
-            margin-top: 30px;
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-        .add-to-cart-btn, .buy-now-btn, .stripe-btn {
-            padding: 12px 25px;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-block;
-            text-align: center;
-        }
-        .add-to-cart-btn {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-        }
-        .buy-now-btn {
-            background: linear-gradient(45deg, #4CAF50, #2E7D32);
-        }
-        .stripe-btn {
-            background: #635bff;
+        .book-image-large {
             width: 100%;
-            margin-top: 10px;
-        }
-        .add-to-cart-btn:hover, .buy-now-btn:hover, .stripe-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            max-width: 300px;
+            height: auto;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            object-fit: cover;
         }
         
-        /* Section Stripe */
-        .stripe-section {
-            margin-top: 20px;
-            border-top: 1px solid #eee;
-            padding-top: 20px;
+        .book-info-section {
+            display: flex;
+            flex-direction: column;
         }
-        #payment-form {
-            margin-top: 20px;
+        
+        .book-title { 
+            font-size: 2.2rem; 
+            margin-bottom: 15px; 
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.3;
         }
-        #payment-element {
-            margin-bottom: 20px;
+        .book-meta { 
+            margin-bottom: 30px; 
         }
-        .hidden {
-            display: none;
+        .book-meta p {
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+        }
+        .book-meta strong {
+            color: #667eea;
+            font-weight: 600;
+        }
+        .book-description { 
+            margin-top: 30px; 
+            line-height: 1.6; 
+            font-size: 1.1rem;
+        }
+        .book-description h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+        .book-genre-badge {
+            display: inline-block;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 10px 0;
+        }
+        .book-price-large {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #28a745;
+            margin: 15px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .book-detail {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                padding: 20px;
+            }
+            .book-image-large {
+                max-width: 250px;
+                margin: 0 auto;
+            }
+            .book-title {
+                font-size: 1.8rem;
+            }
         }
     </style>
 </head>
@@ -112,121 +151,48 @@ try {
         <a href="index.php" class="back-button">← Retour à la liste</a>
         
         <div class="book-detail">
-            <h1 class="book-title"><?php echo htmlspecialchars($livre['titre']); ?></h1>
-            
-            <div class="book-meta">
-                <p><strong>Auteur(s):</strong> <?php echo htmlspecialchars($livre['noms_auteurs']); ?></p>
-                <?php if (isset($livre['genre_nom'])): ?>
-                    <p><strong>Genre:</strong> <?php echo htmlspecialchars($livre['genre_nom']); ?></p>
-                <?php endif; ?>
-                <?php if (isset($livre['annee_publication'])): ?>
-                    <p><strong>Année:</strong> <?php echo $livre['annee_publication']; ?></p>
-                <?php endif; ?>
-                <?php if (isset($livre['isbn'])): ?>
-                    <p><strong>ISBN:</strong> <?php echo htmlspecialchars($livre['isbn']); ?></p>
-                <?php endif; ?>
-                <?php if (isset($livre['prix'])): ?>
-                    <p><strong>Prix:</strong> <?php echo number_format($livre['prix'], 2); ?> €</p>
-                <?php endif; ?>
+            <div class="book-image-container">
+                <?php 
+                $imageUrl = $livre['image_url'] ?? '/placeholder.svg?height=400&width=300';
+                ?>
+                <img src="<?php echo htmlspecialchars($imageUrl); ?>" 
+                     alt="Couverture de <?php echo htmlspecialchars($livre['titre']); ?>" 
+                     class="book-image-large"
+                     onerror="this.src='/placeholder.svg?height=400&width=300'">
             </div>
             
-            <?php if (isset($livre['description']) && !empty($livre['description'])): ?>
-                <div class="book-description">
-                    <h3>Description</h3>
-                    <p><?php echo nl2br(htmlspecialchars($livre['description'])); ?></p>
+            <div class="book-info-section">
+                <h1 class="book-title"><?php echo htmlspecialchars($livre['titre']); ?></h1>
+                
+                <div class="book-meta">
+                    <p><strong>Auteur(s):</strong> <?php echo htmlspecialchars($livre['noms_auteurs']); ?></p>
+                    
+                    <?php if (isset($livre['genre_nom'])): ?>
+                        <div class="book-genre-badge">
+                            <?php echo htmlspecialchars($livre['genre_nom']); ?>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <?php if (isset($livre['prix'])): ?>
+                        <div class="book-price-large">💰 Prix: <?php echo number_format($livre['prix'], 2); ?> €</div>
+                    <?php endif; ?>
+                    
+                    <?php if (isset($livre['annee_publication'])): ?>
+                        <p><strong>Année de publication:</strong> <?php echo $livre['annee_publication']; ?></p>
+                    <?php endif; ?>
+                    
+                    <?php if (isset($livre['isbn'])): ?>
+                        <p><strong>ISBN:</strong> <?php echo htmlspecialchars($livre['isbn']); ?></p>
+                    <?php endif; ?>
                 </div>
-            <?php endif; ?>
-            
-            <!-- Section Boutons d'action -->
-            <div class="action-buttons">
-                <!-- Bouton Ajouter au panier -->
-                <form action="panier.php" method="post">
-                    <input type="hidden" name="action" value="add">
-                    <input type="hidden" name="id_livre" value="<?php echo $livre['id_livre']; ?>">
-                    <button type="submit" class="add-to-cart-btn">🛒 Ajouter au panier</button>
-                </form>
                 
-                <!-- Bouton Acheter maintenant -->
-                <?php if (isset($livre['prix']) && $livre['prix'] > 0): ?>
-                <form action="paiement.php" method="post">
-                    <input type="hidden" name="direct_purchase" value="1">
-                    <input type="hidden" name="id_livre" value="<?php echo $livre['id_livre']; ?>">
-                    <input type="hidden" name="prix" value="<?php echo $livre['prix']; ?>">
-                    <input type="hidden" name="titre" value="<?php echo htmlspecialchars($livre['titre']); ?>">
-                    <button type="submit" class="buy-now-btn">💰 Acheter maintenant</button>
-                </form>
+                <?php if (isset($livre['description']) && !empty($livre['description'])): ?>
+                    <div class="book-description">
+                        <h3>Description</h3>
+                        <p><?php echo nl2br(htmlspecialchars($livre['description'])); ?></p>
+                    </div>
                 <?php endif; ?>
             </div>
-            
-            <!-- Section Paiement Stripe (optionnelle, peut être activée) -->
-            <?php if (isset($livre['prix']) && $livre['prix'] > 0 && false): // Mettez "false" à "true" pour activer ?>
-            <div class="stripe-section">
-                <h3>Paiement sécurisé</h3>
-                <form id="payment-form">
-                    <div id="payment-element"></div>
-                    <button id="submit" class="stripe-btn">
-                        <span id="button-text">Payer <?php echo number_format($livre['prix'], 2); ?> € avec Stripe</span>
-                        <span id="spinner" class="hidden">Chargement...</span>
-                    </button>
-                    <div id="payment-message" class="hidden"></div>
-                </form>
-            </div>
-
-            <script>
-                const stripe = Stripe('<?php echo STRIPE_PUBLISHABLE_KEY; ?>');
-                let elements;
-                
-                initialize();
-                
-                document.querySelector("#payment-form").addEventListener("submit", handleSubmit);
-                
-                async function initialize() {
-                    const response = await fetch("create-checkout-session.php", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            id_livre: <?php echo $livre['id_livre']; ?>,
-                            prix: <?php echo $livre['prix'] * 100; ?>,
-                            titre: "<?php echo addslashes($livre['titre']); ?>",
-                            currency: "eur"
-                        }),
-                    });
-                    
-                    const { clientSecret } = await response.json();
-                    
-                    elements = stripe.elements({ clientSecret });
-                    const paymentElement = elements.create("payment");
-                    paymentElement.mount("#payment-element");
-                }
-                
-                async function handleSubmit(e) {
-                    e.preventDefault();
-                    setLoading(true);
-                    
-                    const { error } = await stripe.confirmPayment({
-                        elements,
-                        confirmParams: {
-                            return_url: "http://votresite.com/confirmation.php",
-                        },
-                    });
-                    
-                    if (error) {
-                        document.getElementById("payment-message").textContent = error.message;
-                    }
-                    
-                    setLoading(false);
-                }
-                
-                function setLoading(isLoading) {
-                    const submitButton = document.querySelector("#submit");
-                    submitButton.disabled = isLoading;
-                    document.querySelector("#button-text").style.display = 
-                        isLoading ? "none" : "inline";
-                    document.querySelector("#spinner").style.display = 
-                        isLoading ? "inline" : "none";
-                }
-            </script>
-            <?php endif; ?>
         </div>
     </div>
 </body>
