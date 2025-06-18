@@ -1,11 +1,11 @@
 <?php
 require_once 'config.php';
+require_once 'auth.php';
 
-session_start(); // Ajouté pour la gestion du panier
-
+// Traitement de la recherche
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $genre = isset($_GET['genre']) ? trim($_GET['genre']) : '';
-$cart_count = isset($_SESSION['cart']) ? count($_SESSION['cart']) : 0; // Compteur panier
+$mois = isset($_GET['mois']) ? (int)$_GET['mois'] : 0;
 
 try {
     $sql = "SELECT l.*, 
@@ -20,22 +20,23 @@ try {
     $params = [];
 
     if (!empty($search)) {
-        $conditions[] = "(l.titre LIKE :search_titre 
-                         OR a.nom LIKE :search_nom 
-                         OR a.prenom LIKE :search_prenom
-                         OR l.prix = :search_prix)";
-        
-        $params[':search_titre'] = '%' . $search . '%';
-        $params[':search_nom'] = '%' . $search . '%';
-        $params[':search_prenom'] = '%' . $search . '%';
-        $params[':search_prix'] = is_numeric($search) ? (float)$search : -1;
+        $conditions[] = "(l.titre LIKE ? OR a.nom LIKE ? OR a.prenom LIKE ?)";
+        $params[] = '%' . $search . '%';
+        $params[] = '%' . $search . '%';
+        $params[] = '%' . $search . '%';
     }
 
     if (!empty($genre)) {
-        $conditions[] = "g.intitule = :genre";
-        $params[':genre'] = $genre;
+        $conditions[] = "g.intitule = ?";
+        $params[] = $genre;
     }
 
+    if ($mois > 0 && $mois <= 12) {
+        $conditions[] = "MONTH(l.date_ajout) = ?";
+        $params[] = $mois;
+    }
+
+    // Finalisation de la requête
     if (!empty($conditions)) {
         $sql .= " WHERE " . implode(' AND ', $conditions);
     }
@@ -60,6 +61,14 @@ try {
     $statsStmt = $pdo->query("SELECT COUNT(*) as total_auteurs FROM auteurs");
     $totalAuteurs = $statsStmt->fetch()['total_auteurs'];
     
+    // Récupération du mois actuel pour le filtre
+    $moisActuel = date('n');
+    $nomsMois = [
+        1 => 'Janvier', 2 => 'Février', 3 => 'Mars', 4 => 'Avril',
+        5 => 'Mai', 6 => 'Juin', 7 => 'Juillet', 8 => 'Août',
+        9 => 'Septembre', 10 => 'Octobre', 11 => 'Novembre', 12 => 'Décembre'
+    ];
+    
 } catch (PDOException $e) {
     $error = "Erreur lors de la recherche : " . $e->getMessage();
     $livres = [];
@@ -67,6 +76,9 @@ try {
     $totalLivres = 0;
     $totalAuteurs = 0;
 }
+
+// Obtenir l'utilisateur connecté
+$currentUser = getCurrentUser();
 ?>
 
 <!DOCTYPE html>
@@ -80,6 +92,51 @@ try {
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; color: #333; }
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
         header { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; text-align: center; margin-bottom: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); position: relative; }
+        .auth-buttons { 
+            position: absolute; 
+            top: 20px; 
+            right: 20px; 
+            display: flex; 
+            gap: 10px; 
+            align-items: center; 
+            z-index: 10;
+        }
+        .auth-btn { 
+            padding: 10px 16px; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            font-size: 0.9rem; 
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: inline-block;
+            border: none;
+            text-align: center;
+        }
+        .login-btn { 
+            background: linear-gradient(45deg, #667eea, #764ba2); 
+            color: white !important; 
+        }
+        .register-btn { 
+            background: rgba(255, 255, 255, 0.9); 
+            color: #333 !important; 
+            border: 2px solid #667eea; 
+        }
+        .logout-btn { 
+            background: linear-gradient(45deg, #dc3545, #c82333); 
+            color: white !important; 
+        }
+        .auth-btn:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); 
+            text-decoration: none;
+        }
+        .user-welcome { 
+            color: #667eea; 
+            font-weight: 600; 
+            margin-right: 10px; 
+            font-size: 0.9rem; 
+        }
         .logo { font-size: 4rem; margin-bottom: 10px; animation: bounce 2s infinite; }
         @keyframes bounce {
             0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
@@ -93,9 +150,9 @@ try {
         .cart-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(46, 125, 50, 0.4); }
         .search-section { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; margin-bottom: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
         .search-form { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; align-items: center; }
-        .search-input, .genre-select { padding: 15px 20px; border: 2px solid #e0e0e0; border-radius: 15px; font-size: 1rem; transition: all 0.3s ease; background: white; }
+        .search-input, .genre-select, .month-select { padding: 15px 20px; border: 2px solid #e0e0e0; border-radius: 15px; font-size: 1rem; transition: all 0.3s ease; background: white; }
         .search-input { flex: 1; min-width: 250px; }
-        .search-input:focus, .genre-select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 20px rgba(102, 126, 234, 0.2); transform: translateY(-2px); }
+        .search-input:focus, .genre-select:focus, .month-select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 20px rgba(102, 126, 234, 0.2); transform: translateY(-2px); }
         .search-btn { padding: 15px 30px; background: linear-gradient(45deg, #667eea, #764ba2); color: white; border: none; border-radius: 15px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
         .search-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4); }
         .results-section { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
@@ -119,6 +176,12 @@ try {
         .stat-label { color: rgba(255, 255, 255, 0.9); font-size: 0.9rem; }
         footer { text-align: center; padding: 30px; color: rgba(255, 255, 255, 0.8); margin-top: 40px; }
         @media (max-width: 768px) {
+            .auth-buttons { 
+                position: static; 
+                justify-content: center; 
+                margin-bottom: 20px; 
+                flex-wrap: wrap;
+            }
             .search-form { flex-direction: column; }
             .search-input { min-width: 100%; }
             .books-grid { grid-template-columns: 1fr; }
@@ -129,10 +192,16 @@ try {
 <body>
     <div class="container">
         <header>
-            <div class="header-actions">
-                <button class="cart-btn">
-                    🛒 Panier <?= $cart_count > 0 ? "($cart_count)" : '' ?>
-                </button>
+            <div class="auth-buttons">
+                <?php if (isLoggedIn()): ?>
+                    <span class="user-welcome">
+                        👋 Bonjour, <?php echo htmlspecialchars($currentUser['prenom'] ?: $currentUser['username']); ?>
+                    </span>
+                    <a href="logout.php" class="auth-btn logout-btn">🚪 Déconnexion</a>
+                <?php else: ?>
+                    <a href="login.php" class="auth-btn login-btn">🔐 Se connecter</a>
+                    <a href="register.php" class="auth-btn register-btn">📝 S'inscrire</a>
+                <?php endif; ?>
             </div>
             
             <div class="logo">📚</div>
@@ -152,6 +221,10 @@ try {
             <div class="stat-item">
                 <span class="stat-number"><?= count($livres) ?></span>
                 <span class="stat-label">Résultats</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number"><?php echo $nomsMois[$moisActuel] ?? '--'; ?></span>
+                <span class="stat-label">Mois actuel</span>
             </div>
         </div>
 
@@ -175,6 +248,16 @@ try {
                 </select>
                 <?php endif; ?>
                 
+                <select class="month-select" name="mois">
+                    <option value="0">Tous les mois</option>
+                    <?php foreach ($nomsMois as $num => $nom): ?>
+                        <option value="<?php echo $num; ?>" 
+                                <?php echo ($mois == $num) ? 'selected' : ''; ?>>
+                            <?php echo $nom; ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                
                 <button type="submit" class="search-btn">
                     🔍 Rechercher
                 </button>
@@ -186,8 +269,11 @@ try {
                 <span>📋</span>
                 <span>
                     <?php 
-                    if (!empty($search) || !empty($genre)) {
+                    if (!empty($search) || !empty($genre) || $mois > 0) {
                         echo "Résultats de recherche (" . count($livres) . ")";
+                        if ($mois > 0) {
+                            echo " - " . $nomsMois[$mois];
+                        }
                     } else {
                         echo "Tous les livres (" . count($livres) . ")";
                     }
@@ -203,7 +289,7 @@ try {
                 <div class="no-results">
                     <div class="no-results-icon">📚</div>
                     <h3>Aucun résultat trouvé</h3>
-                    <p>Essayez avec d'autres mots-clés ou changez le filtre de genre.</p>
+                    <p>Essayez avec d'autres mots-clés ou changez les filtres.</p>
                 </div>
             <?php else: ?>
                 <div class="books-grid">
@@ -233,7 +319,11 @@ try {
                                 <?php endif; ?>
                                 
                                 <?php if (isset($livre['isbn'])): ?>
-                                    <div class="book-info">📖 ISBN: <?= htmlspecialchars($livre['isbn']) ?></div>
+                                    <div class="book-info">📖 ISBN: <?php echo htmlspecialchars($livre['isbn']); ?></div>
+                                <?php endif; ?>
+                                
+                                <?php if (isset($livre['date_ajout'])): ?>
+                                    <div class="book-info">📅 Ajouté le: <?php echo date('d/m/Y', strtotime($livre['date_ajout'])); ?></div>
                                 <?php endif; ?>
                             </div>
                         </a>
@@ -242,7 +332,14 @@ try {
             <?php endif; ?>
         </div>
     </div>
-
+    <div class="header-buttons">
+        <a href="panier.php" class="cart-button">
+            🛒 Panier
+            <?php if (!empty($_SESSION['panier'])): ?>
+                <span class="cart-count"><?= count($_SESSION['panier']) ?></span>
+            <?php endif; ?>
+        </a>
+    </div>
     <footer>
         <p>&copy; 2025 E-Library. Tous droits réservés. 📚✨</p>
     </footer>
