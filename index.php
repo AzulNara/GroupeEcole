@@ -8,6 +8,7 @@ $genre = isset($_GET['genre']) ? trim($_GET['genre']) : '';
 $mois = isset($_GET['mois']) ? (int)$_GET['mois'] : 0;
 
 try {
+    // Requête principale pour les livres
     $sql = "SELECT l.*, 
                    GROUP_CONCAT(DISTINCT CONCAT(a.prenom, ' ', a.nom) SEPARATOR ', ') AS noms_auteurs,
                    g.intitule AS genre_nom 
@@ -19,6 +20,7 @@ try {
     $conditions = [];
     $params = [];
 
+    // Ajout des conditions de recherche
     if (!empty($search)) {
         $conditions[] = "(l.titre LIKE ? OR a.nom LIKE ? OR a.prenom LIKE ?)";
         $params[] = '%' . $search . '%';
@@ -43,18 +45,14 @@ try {
     $sql .= " GROUP BY l.id_livre ORDER BY l.titre ASC";
 
     $stmt = $pdo->prepare($sql);
-    
-    foreach ($params as $key => $value) {
-        $type = is_float($value) ? PDO::PARAM_STR : PDO::PARAM_STR;
-        $stmt->bindValue($key, $value, $type);
-    }
-    
-    $stmt->execute();
+    $stmt->execute($params);
     $livres = $stmt->fetchAll();
     
+    // Récupération des genres pour le menu déroulant
     $genresStmt = $pdo->query("SELECT intitule FROM genres ORDER BY intitule");
     $genres = $genresStmt->fetchAll(PDO::FETCH_COLUMN);
     
+    // Statistiques
     $statsStmt = $pdo->query("SELECT COUNT(*) as total_livres FROM livres");
     $totalLivres = $statsStmt->fetch()['total_livres'];
     
@@ -145,9 +143,6 @@ $currentUser = getCurrentUser();
         }
         h1 { font-size: 2.5rem; background: linear-gradient(45deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 10px; }
         .subtitle { color: #666; font-size: 1.1rem; }
-        .header-actions { position: absolute; top: 30px; right: 30px; }
-        .cart-btn { padding: 10px 20px; background: linear-gradient(45deg, #4CAF50, #2E7D32); color: white; border: none; border-radius: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.3s ease; }
-        .cart-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(46, 125, 50, 0.4); }
         .search-section { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; margin-bottom: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
         .search-form { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; align-items: center; }
         .search-input, .genre-select, .month-select { padding: 15px 20px; border: 2px solid #e0e0e0; border-radius: 15px; font-size: 1rem; transition: all 0.3s ease; background: white; }
@@ -185,9 +180,40 @@ $currentUser = getCurrentUser();
             .search-form { flex-direction: column; }
             .search-input { min-width: 100%; }
             .books-grid { grid-template-columns: 1fr; }
-            .header-actions { position: static; margin-bottom: 20px; }
+            .stats { flex-direction: column; gap: 15px; }
         }
     </style>
+
+    <style>
+    .header-buttons {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        display: flex;
+        gap: 10px;
+    }
+    .cart-button {
+        padding: 8px 15px;
+        background: #4CAF50;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .cart-count {
+        background: white;
+        color: #4CAF50;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+    }
+</style>
 </head>
 <body>
     <div class="container">
@@ -211,15 +237,15 @@ $currentUser = getCurrentUser();
 
         <div class="stats">
             <div class="stat-item">
-                <span class="stat-number"><?= $totalLivres ?? 0 ?></span>
+                <span class="stat-number"><?php echo $totalLivres ?? 0; ?></span>
                 <span class="stat-label">Livres total</span>
             </div>
             <div class="stat-item">
-                <span class="stat-number"><?= $totalAuteurs ?? 0 ?></span>
+                <span class="stat-number"><?php echo $totalAuteurs ?? 0; ?></span>
                 <span class="stat-label">Auteurs</span>
             </div>
             <div class="stat-item">
-                <span class="stat-number"><?= count($livres) ?></span>
+                <span class="stat-number"><?php echo count($livres); ?></span>
                 <span class="stat-label">Résultats</span>
             </div>
             <div class="stat-item">
@@ -233,16 +259,16 @@ $currentUser = getCurrentUser();
                 <input type="text" 
                        class="search-input" 
                        name="search" 
-                       value="<?= htmlspecialchars($search) ?>"
-                       placeholder="🔍 Rechercher un livre, un auteur, un prix...">
+                       value="<?php echo htmlspecialchars($search); ?>"
+                       placeholder="🔍 Rechercher un livre, un auteur...">
                 
                 <?php if (!empty($genres)): ?>
                 <select class="genre-select" name="genre">
                     <option value="">Tous les genres</option>
                     <?php foreach ($genres as $g): ?>
-                        <option value="<?= htmlspecialchars($g) ?>" 
-                                <?= ($genre === $g) ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($g) ?>
+                        <option value="<?php echo htmlspecialchars($g); ?>" 
+                                <?php echo ($genre === $g) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($g); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -282,7 +308,7 @@ $currentUser = getCurrentUser();
             </h2>
             
             <?php if (isset($error)): ?>
-                <div class="error"><?= $error ?></div>
+                <div class="error"><?php echo $error; ?></div>
             <?php endif; ?>
 
             <?php if (empty($livres)): ?>
@@ -294,28 +320,28 @@ $currentUser = getCurrentUser();
             <?php else: ?>
                 <div class="books-grid">
                     <?php foreach ($livres as $livre): ?>
-                        <a href="livre.php?id=<?= $livre['id_livre'] ?>" class="book-link">
+                        <a href="livre.php?id=<?php echo $livre['id_livre']; ?>" class="book-link">
                             <div class="book-card">
                                 <h3 class="book-title">
-                                    <?= htmlspecialchars($livre['titre'] ?? 'Titre non disponible') ?>
+                                    <?php echo htmlspecialchars($livre['titre'] ?? 'Titre non disponible'); ?>
                                 </h3>
                                 
                                 <p class="book-author">
-                                    par <?= htmlspecialchars($livre['noms_auteurs'] ?? 'Auteur inconnu') ?>
+                                    par <?php echo htmlspecialchars($livre['noms_auteurs'] ?? 'Auteur inconnu'); ?>
                                 </p>
                                 
                                 <?php if (isset($livre['genre_nom'])): ?>
                                     <div class="book-genre">
-                                        <?= htmlspecialchars($livre['genre_nom']) ?>
+                                        <?php echo htmlspecialchars($livre['genre_nom']); ?>
                                     </div>
                                 <?php endif; ?>
                                 
                                 <?php if (isset($livre['prix'])): ?>
-                                    <div class="book-price">💰 Prix: <?= number_format($livre['prix'], 2) ?> €</div>
+                                    <div class="book-price">💰 Prix: <?php echo number_format($livre['prix'], 2); ?> €</div>
                                 <?php endif; ?>
                                 
                                 <?php if (isset($livre['annee_publication'])): ?>
-                                    <div class="book-info">📅 <?= $livre['annee_publication'] ?></div>
+                                    <div class="book-info">📅 <?php echo $livre['annee_publication']; ?></div>
                                 <?php endif; ?>
                                 
                                 <?php if (isset($livre['isbn'])): ?>
