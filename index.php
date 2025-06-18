@@ -5,7 +5,6 @@ require_once 'auth.php';
 // Traitement de la recherche
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $genre = isset($_GET['genre']) ? trim($_GET['genre']) : '';
-$mois = isset($_GET['mois']) ? (int)$_GET['mois'] : 0;
 
 try {
     // Requête principale pour les livres
@@ -33,11 +32,6 @@ try {
         $params[] = $genre;
     }
 
-    if ($mois > 0 && $mois <= 12) {
-        $conditions[] = "MONTH(l.date_ajout) = ?";
-        $params[] = $mois;
-    }
-
     // Finalisation de la requête
     if (!empty($conditions)) {
         $sql .= " WHERE " . implode(' AND ', $conditions);
@@ -58,14 +52,6 @@ try {
     
     $statsStmt = $pdo->query("SELECT COUNT(*) as total_auteurs FROM auteurs");
     $totalAuteurs = $statsStmt->fetch()['total_auteurs'];
-    
-    // Récupération du mois actuel pour le filtre
-    $moisActuel = date('n');
-    $nomsMois = [
-        1 => 'Janvier', 2 => 'Février', 3 => 'Mars', 4 => 'Avril',
-        5 => 'Mai', 6 => 'Juin', 7 => 'Juillet', 8 => 'Août',
-        9 => 'Septembre', 10 => 'Octobre', 11 => 'Novembre', 12 => 'Décembre'
-    ];
     
 } catch (PDOException $e) {
     $error = "Erreur lors de la recherche : " . $e->getMessage();
@@ -145,9 +131,9 @@ $currentUser = getCurrentUser();
         .subtitle { color: #666; font-size: 1.1rem; }
         .search-section { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; margin-bottom: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
         .search-form { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; align-items: center; }
-        .search-input, .genre-select, .month-select { padding: 15px 20px; border: 2px solid #e0e0e0; border-radius: 15px; font-size: 1rem; transition: all 0.3s ease; background: white; }
+        .search-input, .genre-select { padding: 15px 20px; border: 2px solid #e0e0e0; border-radius: 15px; font-size: 1rem; transition: all 0.3s ease; background: white; }
         .search-input { flex: 1; min-width: 250px; }
-        .search-input:focus, .genre-select:focus, .month-select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 20px rgba(102, 126, 234, 0.2); transform: translateY(-2px); }
+        .search-input:focus, .genre-select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 20px rgba(102, 126, 234, 0.2); transform: translateY(-2px); }
         .search-btn { padding: 15px 30px; background: linear-gradient(45deg, #667eea, #764ba2); color: white; border: none; border-radius: 15px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
         .search-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4); }
         .results-section { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
@@ -248,10 +234,6 @@ $currentUser = getCurrentUser();
                 <span class="stat-number"><?php echo count($livres); ?></span>
                 <span class="stat-label">Résultats</span>
             </div>
-            <div class="stat-item">
-                <span class="stat-number"><?php echo $nomsMois[$moisActuel] ?? '--'; ?></span>
-                <span class="stat-label">Mois actuel</span>
-            </div>
         </div>
 
         <div class="search-section">
@@ -274,16 +256,6 @@ $currentUser = getCurrentUser();
                 </select>
                 <?php endif; ?>
                 
-                <select class="month-select" name="mois">
-                    <option value="0">Tous les mois</option>
-                    <?php foreach ($nomsMois as $num => $nom): ?>
-                        <option value="<?php echo $num; ?>" 
-                                <?php echo ($mois == $num) ? 'selected' : ''; ?>>
-                            <?php echo $nom; ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                
                 <button type="submit" class="search-btn">
                     🔍 Rechercher
                 </button>
@@ -295,11 +267,8 @@ $currentUser = getCurrentUser();
                 <span>📋</span>
                 <span>
                     <?php 
-                    if (!empty($search) || !empty($genre) || $mois > 0) {
+                    if (!empty($search) || !empty($genre)) {
                         echo "Résultats de recherche (" . count($livres) . ")";
-                        if ($mois > 0) {
-                            echo " - " . $nomsMois[$mois];
-                        }
                     } else {
                         echo "Tous les livres (" . count($livres) . ")";
                     }
@@ -346,10 +315,6 @@ $currentUser = getCurrentUser();
                                 
                                 <?php if (isset($livre['isbn'])): ?>
                                     <div class="book-info">📖 ISBN: <?php echo htmlspecialchars($livre['isbn']); ?></div>
-                                <?php endif; ?>
-                                
-                                <?php if (isset($livre['date_ajout'])): ?>
-                                    <div class="book-info">📅 Ajouté le: <?php echo date('d/m/Y', strtotime($livre['date_ajout'])); ?></div>
                                 <?php endif; ?>
                             </div>
                         </a>
