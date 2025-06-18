@@ -10,6 +10,7 @@ if (session_status() == PHP_SESSION_NONE) {
 // Traitement de la recherche
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $genre = isset($_GET['genre']) ? trim($_GET['genre']) : '';
+$tri = isset($_GET['tri']) ? $_GET['tri'] : 'titre'; // Nouveau paramètre de tri
 
 try {
     // Requête principale pour les livres (avec image_url)
@@ -39,7 +40,19 @@ try {
     if (!empty($conditions)) {
         $sql .= " WHERE " . implode(' AND ', $conditions);
     }
-    $sql .= " GROUP BY l.id_livre ORDER BY l.titre ASC";
+    $sql .= " GROUP BY l.id_livre";
+    
+    // Ajout du tri
+    switch ($tri) {
+        case 'prix_asc':
+            $sql .= " ORDER BY l.prix ASC";
+            break;
+        case 'prix_desc':
+            $sql .= " ORDER BY l.prix DESC";
+            break;
+        default:
+            $sql .= " ORDER BY l.titre ASC";
+    }
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -159,9 +172,9 @@ $currentUser = getCurrentUser();
         .subtitle { color: #666; font-size: 1.1rem; }
         .search-section { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; margin-bottom: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
         .search-form { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; align-items: center; }
-        .search-input, .genre-select { padding: 15px 20px; border: 2px solid #e0e0e0; border-radius: 15px; font-size: 1rem; transition: all 0.3s ease; background: white; }
+        .search-input, .genre-select, .sort-select { padding: 15px 20px; border: 2px solid #e0e0e0; border-radius: 15px; font-size: 1rem; transition: all 0.3s ease; background: white; }
         .search-input { flex: 1; min-width: 250px; }
-        .search-input:focus, .genre-select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 20px rgba(102, 126, 234, 0.2); transform: translateY(-2px); }
+        .search-input:focus, .genre-select:focus, .sort-select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 20px rgba(102, 126, 234, 0.2); transform: translateY(-2px); }
         .search-btn { padding: 15px 30px; background: linear-gradient(45deg, #667eea, #764ba2); color: white; border: none; border-radius: 15px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
         .search-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4); }
         .results-section { background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
@@ -213,6 +226,16 @@ $currentUser = getCurrentUser();
         .stat-number { font-size: 2rem; font-weight: 700; color: white; display: block; }
         .stat-label { color: rgba(255, 255, 255, 0.9); font-size: 0.9rem; }
         footer { text-align: center; padding: 30px; color: rgba(255, 255, 255, 0.8); margin-top: 40px; }
+        .sort-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .sort-label {
+            font-weight: 600;
+            color: #333;
+        }
         @media (max-width: 768px) {
             .header-buttons { 
                 position: static; 
@@ -224,6 +247,10 @@ $currentUser = getCurrentUser();
             .search-input { min-width: 100%; }
             .books-grid { grid-template-columns: 1fr; }
             .stats { flex-direction: column; gap: 15px; }
+            .sort-container {
+                flex-direction: column;
+                align-items: flex-start;
+            }
         }
     </style>
 </head>
@@ -298,18 +325,29 @@ $currentUser = getCurrentUser();
         </div>
 
         <div class="results-section">
-            <h2 class="results-title">
-                <span>📋</span>
-                <span>
-                    <?php 
-                    if (!empty($search) || !empty($genre)) {
-                        echo "Résultats de recherche (" . count($livres) . ")";
-                    } else {
-                        echo "Tous les livres (" . count($livres) . ")";
-                    }
-                    ?>
-                </span>
-            </h2>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 class="results-title">
+                    <span>📋</span>
+                    <span>
+                        <?php 
+                        if (!empty($search) || !empty($genre)) {
+                            echo "Résultats de recherche (" . count($livres) . ")";
+                        } else {
+                            echo "Tous les livres (" . count($livres) . ")";
+                        }
+                        ?>
+                    </span>
+                </h2>
+                
+                <div class="sort-container">
+                    <span class="sort-label">Trier par :</span>
+                    <select class="sort-select" onchange="window.location.href = updateQueryStringParameter(window.location.href, 'tri', this.value)">
+                        <option value="titre" <?php echo ($tri === 'titre') ? 'selected' : ''; ?>>Titre (A-Z)</option>
+                        <option value="prix_asc" <?php echo ($tri === 'prix_asc') ? 'selected' : ''; ?>>Prix (croissant)</option>
+                        <option value="prix_desc" <?php echo ($tri === 'prix_desc') ? 'selected' : ''; ?>>Prix (décroissant)</option>
+                    </select>
+                </div>
+            </div>
             
             <?php if (isset($error)): ?>
                 <div class="error"><?php echo $error; ?></div>
@@ -372,5 +410,19 @@ $currentUser = getCurrentUser();
     <footer>
         <p>&copy; 2025 E-Library. Tous droits réservés. 📚✨</p>
     </footer>
+
+    <script>
+        // Fonction pour mettre à jour les paramètres de l'URL
+        function updateQueryStringParameter(uri, key, value) {
+            const re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
+            const separator = uri.indexOf('?') !== -1 ? "&" : "?";
+            
+            if (uri.match(re)) {
+                return uri.replace(re, '$1' + key + "=" + value + '$2');
+            } else {
+                return uri + separator + key + "=" + value;
+            }
+        }
+    </script>
 </body>
 </html>
