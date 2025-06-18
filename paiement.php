@@ -2,7 +2,7 @@
 session_start();
 require_once 'config.php';
 
-// Vérifier si le panier n'est pas vide
+// Vérifier si le panier existe et n'est pas vide
 if (empty($_SESSION['panier'])) {
     header('Location: panier.php');
     exit;
@@ -14,19 +14,17 @@ foreach ($_SESSION['panier'] as $item) {
     $total += $item['prix'] * $item['quantite'];
 }
 
-// Si on vient directement de la page livre (acheter maintenant)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_livre'])) {
-    $id_livre = (int)$_POST['id_livre'];
+// Traitement du faux paiement
+$paiement_effectue = false;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payer'])) {
+    // Enregistrer le faux paiement
+    $paiement_effectue = true;
     
-    // Vider le panier et ajouter seulement ce livre
-    $_SESSION['panier'] = [
-        $id_livre => [
-            'titre' => $_POST['titre'],
-            'prix' => (float)$_POST['prix'],
-            'quantite' => 1
-        ]
-    ];
-    $total = (float)$_POST['prix'];
+    // Vider le panier après paiement
+    unset($_SESSION['panier']);
+    
+    // Rediriger vers la confirmation après 3 secondes
+    header("Refresh:3; url=confirmation.php");
 }
 ?>
 
@@ -34,125 +32,165 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_livre'])) {
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Paiement - E-Library</title>
-    <script src="https://js.stripe.com/v3/"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; color: #333; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .payment-container { background: white; border-radius: 20px; padding: 40px; margin: 30px auto; max-width: 600px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .back-button { display: inline-block; margin-bottom: 20px; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 10px; }
-        .total { font-size: 1.2rem; font-weight: bold; text-align: center; margin: 20px 0; }
-        #payment-form { margin-top: 20px; }
-        .stripe-btn { width: 100%; padding: 12px; background: #635bff; color: white; border: none; border-radius: 10px; font-size: 1rem; cursor: pointer; margin-top: 20px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .payment-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+        .total-amount {
+            font-size: 24px;
+            font-weight: bold;
+            color: #27ae60;
+            margin: 20px 0;
+        }
+        .payment-form {
+            margin-top: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        input[type="text"]:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+        .card-icons {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            justify-content: center;
+        }
+        .card-icons img {
+            height: 30px;
+            opacity: 0.7;
+        }
+        .pay-btn {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+        .pay-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <a href="panier.php" class="back-button">← Retour au panier</a>
-        
-        <div class="payment-container">
-            <h1>Paiement</h1>
+        <div class="payment-card">
+            <h1>Paiement sécurisé</h1>
             
-            <div class="total">
-                Total à payer: <?= number_format($total, 2) ?> €
-            </div>
-            
-            <form id="payment-form">
-                <div id="payment-element"></div>
-                <button id="submit" class="stripe-btn">
-                    <span id="button-text">Payer maintenant</span>
-                    <span id="spinner" style="display:none;">Chargement...</span>
-                </button>
-                <div id="payment-message" class="hidden"></div>
-            </form>
+            <?php if ($paiement_effectue): ?>
+                <div class="success-message">
+                    <p>Paiement effectué avec succès !</p>
+                    <p>Vous allez être redirigé vers la page de confirmation...</p>
+                </div>
+            <?php else: ?>
+                <p>Veuillez entrer vos informations de paiement</p>
+                
+                <div class="total-amount">
+                    Total à payer : <?php echo number_format($total, 2); ?> €
+                </div>
+                
+                <div class="card-icons">
+                    <img src="https://cdn-icons-png.flaticon.com/512/196/196578.png" alt="Visa">
+                    <img src="https://cdn-icons-png.flaticon.com/512/196/196561.png" alt="Mastercard">
+                    <img src="https://cdn-icons-png.flaticon.com/512/196/196566.png" alt="American Express">
+                </div>
+                
+                <form class="payment-form" method="POST">
+                    <div class="form-group">
+                        <label for="card-number">Numéro de carte</label>
+                        <input type="text" id="card-number" placeholder="1234 5678 9012 3456" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="card-name">Nom sur la carte</label>
+                        <input type="text" id="card-name" placeholder="Jean DUPONT" required>
+                    </div>
+                    
+                    <div style="display: flex; gap: 15px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="expiry-date">Date d'expiration</label>
+                            <input type="text" id="expiry-date" placeholder="MM/AA" required>
+                        </div>
+                        
+                        <div class="form-group" style="flex: 1;">
+                            <label for="cvv">CVV</label>
+                            <input type="text" id="cvv" placeholder="123" required>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" name="payer" class="pay-btn">Payer maintenant</button>
+                </form>
+                
+                <a href="panier.php" class="back-link">← Retour au panier</a>
+            <?php endif; ?>
         </div>
     </div>
-
-    <script>
-        const stripe = Stripe('<?php echo STRIPE_PUBLISHABLE_KEY; ?>');
-        
-        let elements;
-        
-        initialize();
-        checkStatus();
-        
-        document.querySelector("#payment-form").addEventListener("submit", handleSubmit);
-        
-        async function initialize() {
-            const response = await fetch("create-payment-intent.php", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    amount: <?= $total * 100 ?>, // Stripe utilise les centimes
-                    currency: "eur"
-                }),
-            });
-            
-            const { clientSecret } = await response.json();
-            
-            elements = stripe.elements({ clientSecret });
-            
-            const paymentElement = elements.create("payment");
-            paymentElement.mount("#payment-element");
-        }
-        
-        async function handleSubmit(e) {
-            e.preventDefault();
-            setLoading(true);
-            
-            const { error } = await stripe.confirmPayment({
-                elements,
-                confirmParams: {
-                    return_url: "http://votresite.com/confirmation.php",
-                },
-            });
-            
-            if (error) {
-                document.getElementById("payment-message").textContent = error.message;
-            }
-            
-            setLoading(false);
-        }
-        
-        async function checkStatus() {
-            const clientSecret = new URLSearchParams(window.location.search).get(
-                "payment_intent_client_secret"
-            );
-            
-            if (!clientSecret) {
-                return;
-            }
-            
-            const { paymentIntent } = await stripe.retrievePaymentIntent(clientSecret);
-            
-            switch (paymentIntent.status) {
-                case "succeeded":
-                    showMessage("Paiement réussi!");
-                    break;
-                case "processing":
-                    showMessage("Votre paiement est en cours.");
-                    break;
-                case "requires_payment_method":
-                    showMessage("Votre paiement a échoué, veuillez réessayer.");
-                    break;
-                default:
-                    showMessage("Une erreur est survenue.");
-                    break;
-            }
-        }
-        
-        function showMessage(messageText) {
-            const messageContainer = document.querySelector("#payment-message");
-            messageContainer.textContent = messageText;
-            messageContainer.style.display = "block";
-        }
-        
-        function setLoading(isLoading) {
-            const submitButton = document.querySelector("#submit");
-            submitButton.disabled = isLoading;
-            document.querySelector("#button-text").style.display = isLoading ? "none" : "inline";
-            document.querySelector("#spinner").style.display = isLoading ? "inline" : "none";
-        }
-    </script>
 </body>
 </html>
