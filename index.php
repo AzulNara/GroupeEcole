@@ -116,15 +116,17 @@ $currentUser = getCurrentUser();
         }
         .cart-button {
             padding: 10px 16px;
-            background: #4CAF50;
-            color: white !important;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333 !important;
             text-decoration: none;
             border-radius: 8px;
             display: flex;
             align-items: center;
             gap: 8px;
             font-weight: 600;
+            font-size: 0.9rem;
             transition: all 0.3s ease;
+            border: 2px solid #667eea;
         }
         .cart-button:hover, .auth-btn:hover { 
             transform: translateY(-2px); 
@@ -132,8 +134,8 @@ $currentUser = getCurrentUser();
             text-decoration: none;
         }
         .cart-count {
-            background: white;
-            color: #4CAF50;
+            background: #667eea;
+            color: white;
             border-radius: 50%;
             width: 22px;
             height: 22px;
@@ -231,8 +233,8 @@ $currentUser = getCurrentUser();
     <div class="container">
         <header>
             <div class="header-buttons">
-                <!-- Bouton panier -->
-                <a href="panier.php" class="cart-button">
+                <!-- Bouton panier style comme "S'inscrire" -->
+                <a href="panier.php" class="auth-btn register-btn" style="display: flex; align-items: center; gap: 8px;">
                     🛒 Panier
                     <?php if (!empty($_SESSION['panier'])): ?>
                         <span class="cart-count"><?= count($_SESSION['panier']) ?></span>

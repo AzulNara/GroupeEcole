@@ -9,7 +9,7 @@ $currentUser = getCurrentUser();
         <div style="text-align: center; flex: 1;">
             <div class="logo">📚</div>
             <h1>E-Library</h1>
-            <p class="subtitle">Découvrez votre prochaine lecture</p>
+            <p class="subtitle">La lecture, après une certaine heure, diverte l'esprit trop tendu vers l'absolu.</p>
         </div>
         
         <div style="display: flex; gap: 10px; align-items: center;">
