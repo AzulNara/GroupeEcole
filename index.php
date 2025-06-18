@@ -108,6 +108,13 @@ $currentUser = getCurrentUser();
             background: linear-gradient(45deg, #dc3545, #c82333); 
             color: white !important; 
         }
+        .cart-btn { 
+            background: linear-gradient(45deg, #ff9966, #ff5e62);
+            color: white !important;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
         .auth-btn:hover { 
             transform: translateY(-2px); 
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); 
@@ -118,6 +125,17 @@ $currentUser = getCurrentUser();
             font-weight: 600; 
             margin-right: 10px; 
             font-size: 0.9rem; 
+        }
+        .cart-count {
+            background: white;
+            color: #ff5e62;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
         }
         .logo { font-size: 4rem; margin-bottom: 10px; animation: bounce 2s infinite; }
         @keyframes bounce {
@@ -205,8 +223,20 @@ $currentUser = getCurrentUser();
                     <span class="user-welcome">
                         👋 Bonjour, <?php echo htmlspecialchars($currentUser['prenom'] ?: $currentUser['username']); ?>
                     </span>
+                    <a href="panier.php" class="auth-btn cart-btn">
+                        🛒 Panier
+                        <?php if (!empty($_SESSION['panier'])): ?>
+                            <span class="cart-count"><?= count($_SESSION['panier']) ?></span>
+                        <?php endif; ?>
+                    </a>
                     <a href="logout.php" class="auth-btn logout-btn">🚪 Déconnexion</a>
                 <?php else: ?>
+                    <a href="panier.php" class="auth-btn cart-btn">
+                        🛒 Panier
+                        <?php if (!empty($_SESSION['panier'])): ?>
+                            <span class="cart-count"><?= count($_SESSION['panier']) ?></span>
+                        <?php endif; ?>
+                    </a>
                     <a href="login.php" class="auth-btn login-btn">🔐 Se connecter</a>
                     <a href="register.php" class="auth-btn register-btn">📝 S'inscrire</a>
                 <?php endif; ?>
@@ -319,7 +349,7 @@ $currentUser = getCurrentUser();
             <?php endif; ?>
         </div>
     </div>
-
+    
     <footer>
         <p>&copy; 2025 E-Library. Tous droits réservés. 📚✨</p>
     </footer>
