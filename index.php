@@ -284,7 +284,7 @@ $currentUser = getCurrentUser();
             
             <div class="logo">📚</div>
             <h1>E-Booky</h1>
-            <p class="subtitle">La E-Library de vos rêve</p>
+            <p class="subtitle">La E-Library de vos rêves</p>
         </header>
 
         <div class="stats">
