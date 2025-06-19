@@ -1,6 +1,6 @@
 <?php
 require_once 'config.php';
-require_once 'auth.php'; // Inclure le système d'authentification
+require_once 'auth.php'; // Inclure le système d'authentificationS
 
 // Démarrer la session pour le panier
 if (session_status() == PHP_SESSION_NONE) {
