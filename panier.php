@@ -121,16 +121,7 @@ if (isset($_SESSION['panier']) && !empty($_SESSION['panier'])) {
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Bouton panier dans le header -->
-        <div class="header-buttons">
-            <a href="panier.php" class="cart-button">
-                🛒 Panier
-                <?php if (!empty($_SESSION['panier'])): ?>
-                    <span class="cart-count"><?= count($_SESSION['panier']) ?></span>
-                <?php endif; ?>
-            </a>
-        </div>
+
         
         <a href="index.php" class="back-button">← Retour à la liste</a>
         

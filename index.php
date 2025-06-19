@@ -412,7 +412,7 @@ $currentUser = getCurrentUser();
     </div>
 
     <footer>
-        <p>&copy; 2025 E-Library. Tous droits réservés. 📚✨</p>
+        <p>&copy; 2025 E-Booky. Tous droits réservés. 📚✨</p>
     </footer>
 
     <script>
